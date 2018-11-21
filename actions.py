@@ -16,9 +16,14 @@ def write_cred(cred_dict):
     with open("credentials.db", "wb") as f:
         pickle.dump(cred_dict, f)
 
-def log_action(fname, user, action, ip):
+def log_action(fname, user, action, ip, cur_user=""):
+    if cur_user == "": 
+        logfile = "log.csv"
+    else:
+        print "logging extra to", cur_user
+        logfile = "../%s/log.csv"%cur_user
     date = datetime.now().strftime("%d %b'%y")
-    with open('log.csv', 'ab') as csvfile:
+    with open(logfile, 'ab') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow([fname, user, action, ip, date])
 
@@ -114,19 +119,21 @@ def client_signout(ctrl_sock, data_sock):
 
 
 def find_owner(f):
+    while os.path.islink(f):
+        f = os.readlink(f)
     path, fname = os.path.split(os.path.abspath(f))
     owner = os.path.split(path)[1]
     return owner
 
 def server_list(ctrl_sock, data_sock):
-    lines = ["{0: <30}{1: <20}{2: <8}".format("File", "User", "Modified"), "="*58]
+    lines = ["{0: <30}{1: <20}{2: <10}".format("File", "User", "Modified"), "="*60]
     for f in os.listdir('.'):
         if f=="log.csv": continue
         ts = os.path.getmtime(f)
         date_str = datetime.utcfromtimestamp(ts).strftime('%b%d,%y')
         owner = find_owner(f)
         #lines.append(f + " " + owner + " " + date_str)
-        lines.append("{0: <30}{1: <20}{2: <8}".format(f, owner, date_str))
+        lines.append("{0: <30}{1: <20}{2: <10}".format(f, owner, date_str))
     final_data = "\n".join(lines)
     send_long_msg(data_sock, final_data)
     ctrl_sock.send('ACK')
@@ -165,6 +172,7 @@ def server_download(ctrl_sock, data_sock, comm_args, user, ip):
         ctrl_sock.send("1")
         send_long_msg(data_sock, contents)
         log_action(fname, user, 'download', ip)
+        log_action(fname, user, 'download', ip, find_owner(fname))
         ctrl_sock.send("ACK")
     else:
         ctrl_sock.send("0")
@@ -188,6 +196,7 @@ def client_download(ctrl_sock, data_sock):
         print "download done"
     else:
         print resp
+
 
 def server_upload(ctrl_sock, data_sock, comm_args, user, ip):
     fname = comm_args[0]
@@ -220,15 +229,58 @@ def client_upload(ctrl_sock, data_sock):
         send_long_msg(data_sock, contents)
     resp = ctrl_sock.recv(1024)
     if resp == "ACK":
-        print "download done"
+        print "upload done"
     else:
         print resp
 
 
+def server_share(ctrl_sock, data_sock, comm_args, user, ip):
+    fname, target = comm_args[0], comm_args[1]
+    if not os.path.isfile(fname):
+        ctrl_sock.send("ERR: File not found")
+        return
+    if not os.path.isdir("../%s"%target):
+        ctrl_sock.send("ERR: User not found")
+        return
+    try:
+        os.symlink(os.path.abspath(fname), "../%s/%s"%(target, fname))
+    except OSError as err:
+        if err.errno == 17:
+            ctrl_sock.send("ERR: File already shared or exists")
+            return
+        else: raise
+    log_action(fname, user, 'share', ip)
+    log_action(fname, user, 'share', ip, target)
+    ctrl_sock.send("ACK")
 
+def client_share(ctrl_sock, data_sock):
+    fname = raw_input("File to share:")
+    target = raw_input("User to share with:")
+    if fname == "log.csv":
+        print "file not found"
+        return
+    ctrl_sock.send("share#%s#%s" %(fname, target))
+    resp = ctrl_sock.recv(1024)
+    if resp == "ACK":
+        print "shared successfully"
+    else:
+        print resp
 
+def server_showlog(ctrl_sock, data_sock):
+    lines = ["{0: <30}{1: <20}{2: <10}{3: <17}{4: <10}".format("File", "User", "Action", "IP", "Date"), "="*87]
+    with open("log.csv") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            lines.append("{0: <30}{1: <20}{2: <10}{3: <17}{4: <10}".format(*row))
+    final_data = "\n".join(lines)
+    send_long_msg(data_sock, final_data)
+    ctrl_sock.send('ACK')
 
-
+def client_showlog(ctrl_sock, data_sock):
+    ctrl_sock.send("showlog")
+    logdata = recv_long_msg(data_sock)
+    ctrl_sock.recv(1024)
+    print logdata
 
 
 

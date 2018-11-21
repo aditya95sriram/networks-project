@@ -47,14 +47,19 @@ make_menu = lambda d: "\n".join("{1}: {0}".format(*e) for e in sorted(d.items(),
 #menu1 = make_menu(["Sign up", "Sign in"])
 menu1 = {"Sign up": 1, "Sign in": 2}
 #menu2 = make_menu(["List files","Download file", "Delete file", "Sign out"])
-menu2 = {"List files": 1, "Upload file": 2, "Download file": 3,"Delete file": 4, "Sign out": 7}
+menu2 = {"List files": 1, "Upload file": 2, "Download file": 3,"Delete file": 4, 
+         "Share file": 5, "Show log": 6, "Sign out": 7}
 
 cur_user = ""
 
 while True:
     if cur_user == "":
         print make_menu(menu1)
-        comm_id = input("Your option:")
+        comm_id = raw_input("Your option:")
+        if not comm_id.isdigit(): 
+            print "invalid option"
+            continue
+        comm_id = int(comm_id)
         username = raw_input("Username:")
         #password = raw_input("Password (no special chars):")
         password = getpass()
@@ -68,7 +73,11 @@ while True:
             print "invalid option"
     else:
         print make_menu(menu2)
-        comm_id = input("Your option:")
+        comm_id = raw_input("Your option:")
+        if not comm_id.isdigit(): 
+            print "invalid option"
+            continue
+        comm_id = int(comm_id)
         if comm_id == menu2['List files']: # list files
             client_list(ctrl_sock, data_sock)
         elif comm_id == menu2['Upload file']: # upload
@@ -77,6 +86,10 @@ while True:
             client_download(ctrl_sock, data_sock)
         elif comm_id == menu2['Delete file']: # delete
             client_delete(ctrl_sock, data_sock)
+        elif comm_id == menu2['Share file']: # share file
+            client_share(ctrl_sock, data_sock)
+        elif comm_id == menu2['Show log']: # show log
+            client_showlog(ctrl_sock, data_sock)
         elif comm_id == menu2['Sign out']: # sign out
             res = client_signout(ctrl_sock, data_sock)
             if res:

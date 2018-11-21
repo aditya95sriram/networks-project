@@ -46,6 +46,10 @@ def handle_client(ctrl_sock, addr, cred_lock):
             server_download(ctrl_sock, data_sock, comm_args, cur_user, addr[0])
         elif comm_name == "upload":
             server_upload(ctrl_sock, data_sock, comm_args, cur_user, addr[0])
+        elif comm_name == "share":
+            server_share(ctrl_sock, data_sock, comm_args, cur_user, addr[0])
+        elif comm_name == "showlog":
+            server_showlog(ctrl_sock, data_sock)
         else:
             print "connection closed by", addr
             print "terminating assigned process", os.getpid()
