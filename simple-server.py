@@ -6,7 +6,7 @@ from time import sleep
 from actions import Server
 
 
-def handle_client(ctrl_sock, addr, cred_lock, file_lock, file_list):
+def handle_client(ctrl_sock, addr, cred_lock):
     print "Got connection from", addr
     # print "client", ctrl_sock
 
@@ -89,10 +89,7 @@ def child_exited(sig, frame):   # to clean up completed child processes (if need
 signal.signal(signal.SIGCHLD, child_exited)  # register child cleaner for SIGCHILD signal
 
 os.chdir('server')  # change into root directory of server
-manager = Manager()
-file_list = manager.list()
 cred_lock = Lock()
-file_lock = Lock()
 while True:
     try:
         client_ctrl_sock, client_addr = man_sock.accept()
@@ -102,7 +99,7 @@ while True:
             continue
         else:
             raise
-    cp = Process(target=handle_client, args=(client_ctrl_sock, client_addr, cred_lock, file_lock, file_list))
+    cp = Process(target=handle_client, args=(client_ctrl_sock, client_addr, cred_lock))
     cp.start()
 print "outside"
 

@@ -4,6 +4,10 @@ from hashlib import md5
 import csv
 from datetime import datetime
 from getpass import getpass
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = lambda x,*args,**kwargs:x
 
 MAX_CHUNKS = 9999
 CHUNK_SIZE = 1024
@@ -32,22 +36,30 @@ def log_action(fname, user, action, ip, cur_user=""):
         writer.writerow([fname, user, action, ip, date])
 
 
-def send_long_msg(sock, msg):
+def send_long_msg(sock, msg, fname=''):
     sz = len(msg)
     num_chunks = (sz+CHUNK_SIZE-1)/CHUNK_SIZE
     print "sending long", num_chunks
     assert num_chunks <= MAX_CHUNKS, msg[:50]
     sock.send( str(num_chunks).zfill(4) )
-    for i in range(num_chunks):
+    if fname:
+        loop = tqdm(range(num_chunks), desc=fname, unit='kB')
+    else:
+        loop = range(num_chunks)
+    for i in loop:
         sock.send(msg[i*CHUNK_SIZE:(i+1)*CHUNK_SIZE])
     sock.recv(1)
 
 
-def recv_long_msg(sock):
+def recv_long_msg(sock, fname=''):
     num_chunks = int(sock.recv(4))
     print "receiving long", num_chunks
     msg = ""
-    for i in range(num_chunks):
+    if fname:
+        loop = tqdm(range(num_chunks), desc=fname, unit='kB')
+    else:
+        loop = range(num_chunks)
+    for i in loop:
         msg += sock.recv(CHUNK_SIZE)
     sock.send(".")
     return msg
@@ -59,26 +71,6 @@ def find_owner(f):
     path, fname = os.path.split(os.path.abspath(f))
     owner = os.path.split(path)[1]
     return owner
-
-
-def acquire_file_lock(fname, lock, shared_list):
-    while True:
-        lock.acquire()
-        if f not in shared_list:
-            shared_list.append(f)
-            print "child %d started working on file %d"%(os.getpid(), fname)
-            lock.release()
-            break
-        else:
-            print "child %d waiting for file %d"%(os.getpid(),fname)
-            lock.release()
-
-
-def release_file_lock(fname, lock, shared_list):
-    lock.acquire()
-    shared_list.remove(fname)
-    print "child %d finished working on file %d"%(os.getpid(),fname)
-    lock.release()
 
 
 class Server(object):
@@ -161,7 +153,8 @@ class Server(object):
             self.ctrl_sock.send("1")
             send_long_msg(self.data_sock, contents)
             log_action(fname, self.user, 'download', self.ip)
-            log_action(fname, self.user, 'download', self.ip, find_owner(fname))
+            if os.path.islink(fname):
+                log_action(fname, self.user, 'download', self.ip, find_owner(fname))
             self.ctrl_sock.send("ACK")
         else:
             self.ctrl_sock.send("0")
@@ -278,7 +271,7 @@ class Client(object):
         self.ctrl_sock.send('download#%s'%fname)
         file_found = self.ctrl_sock.recv(1)
         if file_found == "1":
-            contents = recv_long_msg(self.data_sock)
+            contents = recv_long_msg(self.data_sock, fname)
             with open(fname, "w") as f:
                 f.write(contents)
         else:
@@ -300,7 +293,7 @@ class Client(object):
         if file_found != "1":
             with open(pathtofile, "r") as f:
                 contents = f.read()
-            send_long_msg(self.data_sock, contents)
+            send_long_msg(self.data_sock, contents, fname)
         resp = self.ctrl_sock.recv(1024)
         if resp == "ACK":
             print "upload done"
@@ -325,3 +318,4 @@ class Client(object):
         logdata = recv_long_msg(self.data_sock)
         self.ctrl_sock.recv(1024)
         print logdata        
+
