@@ -36,33 +36,54 @@ def log_action(fname, user, action, ip, cur_user=""):
         writer.writerow([fname, user, action, ip, date])
 
 
+
 def send_long_msg(sock, msg, fname=''):
     sz = len(msg)
-    num_chunks = (sz+CHUNK_SIZE-1)/CHUNK_SIZE
-    print "sending long", num_chunks
-    assert num_chunks <= MAX_CHUNKS, msg[:50]
-    sock.send( str(num_chunks).zfill(4) )
-    if fname:
-        loop = tqdm(range(num_chunks), desc=fname, unit='kB')
-    else:
-        loop = range(num_chunks)
-    for i in loop:
-        sock.send(msg[i*CHUNK_SIZE:(i+1)*CHUNK_SIZE])
-    sock.recv(1)
+    sz_msg = str(sz)
+    print msg
+    print "sz", sz_msg
+    print "sz len (send)", len(sz_msg)
+    sz_char = chr(len(sz_msg)+ord('a')-1)
+    print "sent sz_char", sz_char
+    sock.send(sz_char)
+    send_fix_msg(sock, sz_msg, len(sz_msg))
+    send_fix_msg(sock, msg, sz)
 
 
 def recv_long_msg(sock, fname=''):
-    num_chunks = int(sock.recv(4))
-    print "receiving long", num_chunks
-    msg = ""
-    if fname:
-        loop = tqdm(range(num_chunks), desc=fname, unit='kB')
-    else:
-        loop = range(num_chunks)
-    for i in loop:
-        msg += sock.recv(CHUNK_SIZE)
-    sock.send(".")
+    sz_char = sock.recv(1)
+    print "recd sz_char", sz_char
+    sz_len = ord(sz_char) - ord('a') + 1
+    print "sz len (recv)", sz_len
+    sz_msg = recv_fix_msg(sock, sz_len)
+    print "recv sz", sz_msg
+    msg = recv_fix_msg(sock, int(sz_msg))
+    print msg
     return msg
+
+
+def send_fix_msg(sock, msg, msglen):
+    totalsent = 0
+    while totalsent < msglen:
+        sent = sock.send(msg[totalsent:])
+        if sent == 0:
+            raise RuntimeError("socket connection broken")
+        totalsent = totalsent + sent
+
+
+def recv_fix_msg(sock, msglen):
+    chunks = []
+    bytes_recd = 0
+    while bytes_recd < msglen:
+        chunk = sock.recv(min(msglen - bytes_recd, 2048))
+        if chunk == '':
+            raise RuntimeError("socket connection broken")
+        chunks.append(chunk)
+        bytes_recd = bytes_recd + len(chunk)
+    return ''.join(chunks)
+
+
+
 
 
 def find_owner(f):
