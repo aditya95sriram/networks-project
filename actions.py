@@ -9,7 +9,7 @@ try:
     print "found tqdm"
 except ImportError:
     class tqdm():
-        def __init__(self, total):
+        def __init__(self, **kwargs):
             pass
         def update(self, n):
             pass
@@ -63,7 +63,7 @@ def recv_long_msg(sock, progress=False):
 
 def send_fix_msg(sock, msg, msglen, progress=False):
     totalsent = 0
-    if progress: pbar = tqdm(total=msglen)
+    if progress: pbar = tqdm(total=msglen, unit="kB", unit_scale=True)
     while totalsent < msglen:
         sent = sock.send(msg[totalsent:])
         if sent == 0:
@@ -76,7 +76,7 @@ def send_fix_msg(sock, msg, msglen, progress=False):
 def recv_fix_msg(sock, msglen, progress=False):
     chunks = []
     bytes_recd = 0
-    if progress: pbar = tqdm(total=msglen)
+    if progress: pbar = tqdm(total=msglen, unit="B", unit_scale=True)
     while bytes_recd < msglen:
         chunk = sock.recv(min(msglen - bytes_recd, 2048))
         if chunk == '':

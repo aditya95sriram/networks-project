@@ -11,8 +11,18 @@ ctrl_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ctrl_man_port = 12345
 
 # connect to the server on local computer
+defaultip = "127.0.0.1"
+if os.path.isfile("serverip.txt"):
+    with open("serverip.txt", "r") as f: defaultip = f.read()
+
 serverip = raw_input("Server IP addr:").strip()
-if not serverip: serverip = "127.0.0.1"
+if serverip:
+    with open("serverip.txt", "w") as f: f.write(serverip)
+else:
+    serverip = defaultip
+print "Connecting to server (%s)..."%(serverip)
+
+    
 ctrl_sock.connect((serverip, ctrl_man_port))
 print "established control channel"
 
