@@ -11,7 +11,9 @@ ctrl_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ctrl_man_port = 12345
 
 # connect to the server on local computer
-ctrl_sock.connect(('127.0.0.1', ctrl_man_port))
+serverip = raw_input("Server IP addr:").strip()
+if not serverip: serverip = "127.0.0.1"
+ctrl_sock.connect((serverip, ctrl_man_port))
 print "established control channel"
 
 data_man_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

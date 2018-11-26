@@ -6,8 +6,15 @@ from datetime import datetime
 from getpass import getpass
 try:
     from tqdm import tqdm
+    print "found tqdm"
 except ImportError:
-    tqdm = lambda x,*args,**kwargs:x
+    class tqdm():
+        def __init__(self, total):
+            pass
+        def update(self, n):
+            pass
+        def close(self):
+            pass
 
 MAX_CHUNKS = 9999
 CHUNK_SIZE = 1024
@@ -36,54 +43,49 @@ def log_action(fname, user, action, ip, cur_user=""):
         writer.writerow([fname, user, action, ip, date])
 
 
-
-def send_long_msg(sock, msg, fname=''):
+def send_long_msg(sock, msg, progress=False):
     sz = len(msg)
     sz_msg = str(sz)
-    print msg
-    print "sz", sz_msg
-    print "sz len (send)", len(sz_msg)
-    sz_char = chr(len(sz_msg)+ord('a')-1)
-    print "sent sz_char", sz_char
+    sz_len = len(sz_msg)
+    sz_char = chr(sz_len + ord('a') - 1)
     sock.send(sz_char)
-    send_fix_msg(sock, sz_msg, len(sz_msg))
-    send_fix_msg(sock, msg, sz)
+    send_fix_msg(sock, sz_msg, sz_len)
+    send_fix_msg(sock, msg, sz, progress)
 
 
-def recv_long_msg(sock, fname=''):
+def recv_long_msg(sock, progress=False):
     sz_char = sock.recv(1)
-    print "recd sz_char", sz_char
     sz_len = ord(sz_char) - ord('a') + 1
-    print "sz len (recv)", sz_len
     sz_msg = recv_fix_msg(sock, sz_len)
-    print "recv sz", sz_msg
-    msg = recv_fix_msg(sock, int(sz_msg))
-    print msg
+    msg = recv_fix_msg(sock, int(sz_msg), progress)
     return msg
 
 
-def send_fix_msg(sock, msg, msglen):
+def send_fix_msg(sock, msg, msglen, progress=False):
     totalsent = 0
+    if progress: pbar = tqdm(total=msglen)
     while totalsent < msglen:
         sent = sock.send(msg[totalsent:])
         if sent == 0:
             raise RuntimeError("socket connection broken")
+        if progress: pbar.update(sent)
         totalsent = totalsent + sent
+    if progress: pbar.close()
 
 
-def recv_fix_msg(sock, msglen):
+def recv_fix_msg(sock, msglen, progress=False):
     chunks = []
     bytes_recd = 0
+    if progress: pbar = tqdm(total=msglen)
     while bytes_recd < msglen:
         chunk = sock.recv(min(msglen - bytes_recd, 2048))
         if chunk == '':
             raise RuntimeError("socket connection broken")
         chunks.append(chunk)
+        if progress: pbar.update(len(chunk))
         bytes_recd = bytes_recd + len(chunk)
+    if progress: pbar.close()
     return ''.join(chunks)
-
-
-
 
 
 def find_owner(f):
@@ -292,7 +294,7 @@ class Client(object):
         self.ctrl_sock.send('download#%s'%fname)
         file_found = self.ctrl_sock.recv(1)
         if file_found == "1":
-            contents = recv_long_msg(self.data_sock, fname)
+            contents = recv_long_msg(self.data_sock, True)
             with open(fname, "w") as f:
                 f.write(contents)
         else:
@@ -314,7 +316,7 @@ class Client(object):
         if file_found != "1":
             with open(pathtofile, "r") as f:
                 contents = f.read()
-            send_long_msg(self.data_sock, contents, fname)
+            send_long_msg(self.data_sock, contents, True)
         resp = self.ctrl_sock.recv(1024)
         if resp == "ACK":
             print "upload done"
