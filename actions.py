@@ -109,7 +109,8 @@ class Server(object):
         self.cred_lock.acquire()
         cred_dict = read_cred()
         if usr in cred_dict:
-            self.ctrl_sock.send("ERR: user already exists")
+            resp = embed_msg("ERR: user already exists")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
             self.cred_lock.release()
             return False
         else:
@@ -120,7 +121,8 @@ class Server(object):
             os.chdir(usr)
             f = open("log.csv","w")
             f.close()
-            self.ctrl_sock.send("ACK")
+            resp = embed_msg("ACK")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
             self.user = usr # user signed in
             return True
             
@@ -128,17 +130,20 @@ class Server(object):
         usr, pswd = args[0], args[1]
         cred_dict = read_cred()
         if usr not in cred_dict or cred_dict[usr] != pswd:
-            self.ctrl_sock.send("ERR: invalid username or password")
+            resp = embed_msg("ERR: invalid username or password")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
             return False
         else:
-            self.ctrl_sock.send("ACK")
+            resp = embed_msg("ACK")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
             os.chdir(usr)
             self.user = usr # user signed in
             return True
 
     def signout(self):
         os.chdir("..") # switch back to server root
-        self.ctrl_sock.send("ACK")
+        resp = embed_msg("ACK")
+        send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
         self.user = ""
 
     def list(self):
@@ -156,16 +161,19 @@ class Server(object):
             lines.append(fmt_str.format(f, owner, date_str))
         final_data = "\n".join(lines)
         send_long_msg(self.data_sock, final_data)
-        self.ctrl_sock.send('ACK')
+        resp = embed_msg('ACK')
+        send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
 
     def delete(self, args):
         fname = args[0]
         if fname!="log.csv" and os.path.isfile(fname):
             os.remove(fname)
             log_action(fname, self.user ,'delete', self.ip)
-            self.ctrl_sock.send("ACK")
+            resp = embed_msg("ACK")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
         else:
-            self.ctrl_sock.send("ERR: No such file")
+            resp = embed_msg("ERR: No such file")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
 
     def download(self, args):
         fname = args[0]
@@ -177,46 +185,55 @@ class Server(object):
             log_action(fname, self.user, 'download', self.ip)
             if os.path.islink(fname):
                 log_action(fname, self.user, 'download', self.ip, find_owner(fname))
-            self.ctrl_sock.send("ACK")
+            resp = embed_msg("ACK")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
         else:
             self.ctrl_sock.send("0")
-            self.ctrl_sock.send("ERR: No such file")
+            resp = embed_msg("ERR: No such file")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
 
     def upload(self, args):
         fname = args[0]
         if fname == "log.csv":
             self.ctrl_sock.send("1")
-            self.ctrl_sock.send("ERR: Invalid file")
+            resp = embed_msg("ERR: Invalid file")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
             return
         if os.path.isfile(fname):
             self.ctrl_sock.send("1")
-            self.ctrl_sock.send("ERR: File already exists")
+            resp = embed_msg("ERR: File already exists")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
         else:
             self.ctrl_sock.send("0")
             contents = recv_long_msg(self.data_sock)
             with open(fname, "w") as f:
                 f.write(contents)
             log_action(fname, self.user, 'upload', self.ip)
-            self.ctrl_sock.send("ACK")
+            resp = embed_msg("ACK")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
             
     def share(self, args):
         fname, target = args[0], args[1]
         if not os.path.isfile(fname):
-            self.ctrl_sock.send("ERR: File not found")
+            resp = embed_msg("ERR: File not found")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
             return
         if not os.path.isdir("../%s"%target):
-            self.ctrl_sock.send("ERR: User not found")
+            resp = embed_msg("ERR: User not found")
+            send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
             return
         try:
             os.symlink(os.path.abspath(fname), "../%s/%s"%(target, fname))
         except OSError as err:
             if err.errno == 17:
-                self.ctrl_sock.send("ERR: File already shared or exists")
+                resp = embed_msg("ERR: File already shared or exists")
+                send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
                 return
             else: raise
         log_action(fname, self.user, 'share', self.ip)
         log_action(fname, self.user, 'share', self.ip, target)
-        self.ctrl_sock.send("ACK")
+        resp = embed_msg("ACK")
+        send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
 
     def showlog(self):
         fmt_str = "{0: <30}{1: <20}{2: <10}{3: <17}{4: <10}"
@@ -227,7 +244,8 @@ class Server(object):
                 lines.append(fmt_str.format(*row))
         final_data = "\n".join(lines)
         send_long_msg(self.data_sock, final_data)
-        self.ctrl_sock.send('ACK')
+        resp = embed_msg('ACK')
+        send_fix_msg(self.ctrl_sock, resp, COMM_WIDTH)
 
 
 class Client(object):
@@ -240,10 +258,11 @@ class Client(object):
     def signup(self):
         username = raw_input("Username: ")
         password = getpass()
+        if not username or not password: print "invalid details"
         hash_pswd = md5(password).hexdigest()
         command = embed_msg("signup#%s#%s" % (username, hash_pswd))
         send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
-        resp = self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         if resp == "ACK":
             print "signup successful"
             self.user = username
@@ -253,10 +272,11 @@ class Client(object):
     def signin(self):
         username = raw_input("Username: ")
         password = getpass()
+        if not username or not password: print "invalid details"
         hash_pswd = md5(password).hexdigest()
         command = embed_msg("signin#%s#%s" % (username, hash_pswd))
         send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
-        resp = self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         if resp == "ACK":
             print "signin successful"
             self.user = username
@@ -266,7 +286,7 @@ class Client(object):
     def signout(self):
         command = embed_msg("signout")
         send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
-        resp = self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         if resp == "ACK":
             print "signed out"
             self.user = ""
@@ -277,14 +297,14 @@ class Client(object):
         command = embed_msg('list')
         send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         filelist = recv_long_msg(self.data_sock)
-        self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         print filelist
 
     def delete(self):
         fname = raw_input("File to delete:")
         command = embed_msg('delete#%s' % fname)
         send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
-        resp = self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         if resp == "ACK":
             print "file deleted"
         else:
@@ -302,7 +322,7 @@ class Client(object):
             contents = recv_long_msg(self.data_sock, True)
             with open(fname, "w") as f:
                 f.write(contents)
-        resp = self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         if resp == "ACK":
             print "download done"
         else:
@@ -321,7 +341,7 @@ class Client(object):
             with open(pathtofile, "r") as f:
                 contents = f.read()
             send_long_msg(self.data_sock, contents, True)
-        resp = self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         if resp == "ACK":
             print "upload done"
         else:
@@ -335,7 +355,7 @@ class Client(object):
             return
         command = embed_msg("share#%s#%s" %(fname, target))
         send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
-        resp = self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         if resp == "ACK":
             print "shared successfully"
         else:
@@ -345,6 +365,6 @@ class Client(object):
         command = embed_msg("showlog")
         send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         logdata = recv_long_msg(self.data_sock)
-        self.ctrl_sock.recv(1024)
+        resp = recv_fix_msg(self.ctrl_sock, COMM_WIDTH).strip()
         print logdata        
 

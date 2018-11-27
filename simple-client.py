@@ -56,8 +56,10 @@ data_sock, server_addr = data_man_sock.accept()
 print "established data channel with", server_addr, "pid", os.getpid()
 
 
-def print_menu(d):
+def print_menu(d, username):
     print
+    print "User:", username if username else "<not logged in>"
+    print "Menu:"
     for item, itemnum in sorted(d.items(), key=lambda x: x[1]):
         print "{}: {}".format(itemnum, item)
 
@@ -71,7 +73,7 @@ client = Client(ctrl_sock, data_sock)
 while True:
     # print "user:",client.user
     if client.user == "":
-        print_menu(menu1)
+        print_menu(menu1, client.user)
         comm_id = raw_input("Your option:")
         if not comm_id.isdigit():
             print "invalid option"
@@ -85,7 +87,7 @@ while True:
         else:
             print "invalid option"
     else:
-        print_menu(menu2)
+        print_menu(menu2, client.user)
         comm_id = raw_input("Your option:")
         if not comm_id.isdigit():
             print "invalid option"
