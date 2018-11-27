@@ -16,9 +16,6 @@ except ImportError:
         def close(self):
             pass
 
-MAX_CHUNKS = 9999
-CHUNK_SIZE = 1024
-
 
 def read_cred():
     with open("credentials.db", "rb") as f:
@@ -297,8 +294,6 @@ class Client(object):
             contents = recv_long_msg(self.data_sock, True)
             with open(fname, "w") as f:
                 f.write(contents)
-        else:
-            print "no data recd"
         resp = self.ctrl_sock.recv(1024)
         if resp == "ACK":
             print "download done"

@@ -10,7 +10,7 @@ ctrl_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Define the port on which you want to connect
 ctrl_man_port = 12345
 
-# connect to the server on local computer
+# connect to the server
 defaultip = "127.0.0.1"
 if os.path.isfile("serverip.txt"):
     with open("serverip.txt", "r") as f: defaultip = f.read()
@@ -57,11 +57,11 @@ print "established data channel with", server_addr, "pid", os.getpid()
 
 
 def print_menu(d):
+    print
     for item, itemnum in sorted(d.items(), key=lambda x: x[1]):
         print "{}: {}".format(itemnum, item)
 
 
-# make_menu = lambda d: "\n".join("{1}: {0}".format(*e) for e in sorted(d.items(), key=lambda x: x[1]))
 menu1 = {"Sign up": 1, "Sign in": 2}
 menu2 = {"List files": 1, "Upload file": 2, "Download file": 3, "Delete file": 4,
          "Share file": 5, "Show log": 6, "Sign out": 7}
@@ -76,6 +76,7 @@ while True:
         if not comm_id.isdigit():
             print "invalid option"
             continue
+        print
         comm_id = int(comm_id)
         if comm_id == menu1['Sign up']:  # signup
             client.signup()
@@ -89,6 +90,7 @@ while True:
         if not comm_id.isdigit():
             print "invalid option"
             continue
+        print
         comm_id = int(comm_id)
         if comm_id == menu2['List files']:  # list files
             client.list()
