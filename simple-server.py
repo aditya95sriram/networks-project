@@ -1,9 +1,9 @@
 import os
-import signal
+import signal                       # for SIGCHILD (know when child terminates)
 import socket
-from multiprocessing import Lock, Process, Manager
+from multiprocessing import Lock, Process      # for credential read/write lock
 from time import sleep
-from actions import Server, send_fix_msg, recv_fix_msg, COMM_WIDTH
+from actions import Server, recv_fix_msg, COMM_WIDTH
 
 
 def handle_client(ctrl_sock, addr, cred_lock):
@@ -56,9 +56,9 @@ def handle_client(ctrl_sock, addr, cred_lock):
             print "terminating assigned process", os.getpid()
             break
 
-    print "sleep start"
-    sleep(1)
-    print "sleep end"
+    #print "sleep start"
+    #sleep(1)
+    #print "sleep end"
     ctrl_sock.close()
     data_sock.close()
     print "closed", addr

@@ -1,11 +1,11 @@
 import os
-import pickle
-from hashlib import md5
-import csv
-from datetime import datetime
-from getpass import getpass
+import pickle                  # for storing and retrieving credentials from file
+from hashlib import md5        # for hashing passwords
+import csv                     # for storing and retrieving logfiles
+from datetime import datetime  # for date string manipulation
+from getpass import getpass    # for securely accepting password input
 try:
-    from tqdm import tqdm
+    from tqdm import tqdm      # (optional)for progress bar during download/upload
 except ImportError:
     class tqdm():
         def __init__(self, **kwargs):
@@ -43,6 +43,12 @@ def log_action(fname, user, action, ip, cur_user=""):
 
 
 def send_long_msg(sock, msg, progress=False):
+    """ 
+    Reliably send arbitrarily long messages using only fixed-length messaging
+    First transmit one char for number of digits in the number of bytes
+    Then transmit number of bytes using send_fix_msg
+    Then transmit actual msg using send_fix_msg
+    """
     sz = len(msg)
     sz_msg = str(sz)
     sz_len = len(sz_msg)
@@ -53,6 +59,12 @@ def send_long_msg(sock, msg, progress=False):
 
 
 def recv_long_msg(sock, progress=False):
+    """ 
+    Reliably recv arbitrarily long messages using only fixed-length messaging
+    First interpret number of digits in the number of bytes by receiving one char
+    Then receive number of bytes using recv_fix_msg
+    Then receive actual msg using recv_fix_msg
+    """
     sz_char = sock.recv(1)
     sz_len = ord(sz_char) - ord('a') + 1
     sz_msg = recv_fix_msg(sock, sz_len)
@@ -61,6 +73,7 @@ def recv_long_msg(sock, progress=False):
 
 
 def send_fix_msg(sock, msg, msglen, progress=False):
+    """ Reliably send msglen bytes of data """
     totalsent = 0
     if progress: pbar = tqdm(total=msglen, unit="kB", unit_scale=True)
     while totalsent < msglen:
@@ -73,6 +86,7 @@ def send_fix_msg(sock, msg, msglen, progress=False):
 
 
 def recv_fix_msg(sock, msglen, progress=False):
+    """ Reliably receive msglen bytes of data """
     chunks = []
     bytes_recd = 0
     if progress: pbar = tqdm(total=msglen, unit="B", unit_scale=True)

@@ -1,5 +1,5 @@
 import os
-import random  # to generate port number
+import random           # to generate port number
 import socket
 from time import sleep
 
@@ -45,9 +45,9 @@ print "socket binded to data man port", data_man_port
 
 send_fix_msg(ctrl_sock, str(data_man_port).zfill(5), 5)
 
-print "sleep start"
-sleep(1)
-print "sleep end"
+#print "sleep start"
+#sleep(1)
+#print "sleep end"
 
 data_man_sock.listen(0)
 
