@@ -3,7 +3,7 @@ import random  # to generate port number
 import socket
 from time import sleep
 
-from actions import Client
+from actions import Client, send_fix_msg
 
 ctrl_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -43,7 +43,7 @@ while True:
 
 print "socket binded to data man port", data_man_port
 
-ctrl_sock.send(str(data_man_port))
+send_fix_msg(ctrl_sock, str(data_man_port).zfill(5), 5)
 
 print "sleep start"
 sleep(1)

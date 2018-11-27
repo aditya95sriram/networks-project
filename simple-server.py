@@ -3,14 +3,14 @@ import signal
 import socket
 from multiprocessing import Lock, Process, Manager
 from time import sleep
-from actions import Server
+from actions import Server, send_fix_msg, recv_fix_msg, COMM_WIDTH
 
 
 def handle_client(ctrl_sock, addr, cred_lock):
     print "Got connection from", addr
     # print "client", ctrl_sock
 
-    data_man_port = ctrl_sock.recv(1024)
+    data_man_port = recv_fix_msg(ctrl_sock, 5)
     print "data man port recd", data_man_port
 
     data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -28,7 +28,8 @@ def handle_client(ctrl_sock, addr, cred_lock):
     server = Server(ctrl_sock, data_sock, addr[0], cred_lock)
 
     while True:  # process commands from client
-        command = ctrl_sock.recv(1024).strip().split("#")
+        command = recv_fix_msg(ctrl_sock, COMM_WIDTH)
+        command = command.strip().split("#")
         comm_name = command[0]
         comm_args = command[1:]
 

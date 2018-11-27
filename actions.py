@@ -6,7 +6,6 @@ from datetime import datetime
 from getpass import getpass
 try:
     from tqdm import tqdm
-    print "found tqdm"
 except ImportError:
     class tqdm():
         def __init__(self, **kwargs):
@@ -16,6 +15,9 @@ except ImportError:
         def close(self):
             pass
 
+COMM_WIDTH = 100
+def embed_msg(msg, width=COMM_WIDTH):
+    return msg + " "*(width-len(msg))
 
 def read_cred():
     with open("credentials.db", "rb") as f:
@@ -239,7 +241,8 @@ class Client(object):
         username = raw_input("Username: ")
         password = getpass()
         hash_pswd = md5(password).hexdigest()
-        self.ctrl_sock.send("signup#%s#%s" % (username, hash_pswd))
+        command = embed_msg("signup#%s#%s" % (username, hash_pswd))
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         resp = self.ctrl_sock.recv(1024)
         if resp == "ACK":
             print "signup successful"
@@ -251,7 +254,8 @@ class Client(object):
         username = raw_input("Username: ")
         password = getpass()
         hash_pswd = md5(password).hexdigest()
-        self.ctrl_sock.send("signin#%s#%s" % (username, hash_pswd))
+        command = embed_msg("signin#%s#%s" % (username, hash_pswd))
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         resp = self.ctrl_sock.recv(1024)
         if resp == "ACK":
             print "signin successful"
@@ -260,7 +264,8 @@ class Client(object):
             print resp
 
     def signout(self):
-        self.ctrl_sock.send("signout")
+        command = embed_msg("signout")
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         resp = self.ctrl_sock.recv(1024)
         if resp == "ACK":
             print "signed out"
@@ -269,14 +274,16 @@ class Client(object):
             print "unable to sign out"
 
     def list(self):
-        self.ctrl_sock.send('list')
+        command = embed_msg('list')
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         filelist = recv_long_msg(self.data_sock)
         self.ctrl_sock.recv(1024)
         print filelist
 
     def delete(self):
         fname = raw_input("File to delete:")
-        self.ctrl_sock.send('delete#%s' % fname)
+        command = embed_msg('delete#%s' % fname)
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         resp = self.ctrl_sock.recv(1024)
         if resp == "ACK":
             print "file deleted"
@@ -288,7 +295,8 @@ class Client(object):
         if "/" in fname:
             print "invalid file"
             return
-        self.ctrl_sock.send('download#%s'%fname)
+        command = embed_msg('download#%s'%fname)
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         file_found = self.ctrl_sock.recv(1)
         if file_found == "1":
             contents = recv_long_msg(self.data_sock, True)
@@ -306,7 +314,8 @@ class Client(object):
         if not os.path.isfile(pathtofile):
             print "file not found"
             return
-        self.ctrl_sock.send('upload#%s'%fname)
+        command = embed_msg('upload#%s'%fname)
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         file_found = self.ctrl_sock.recv(1)
         if file_found != "1":
             with open(pathtofile, "r") as f:
@@ -324,7 +333,8 @@ class Client(object):
         if fname == "log.csv":
             print "file not found"
             return
-        self.ctrl_sock.send("share#%s#%s" %(fname, target))
+        command = embed_msg("share#%s#%s" %(fname, target))
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         resp = self.ctrl_sock.recv(1024)
         if resp == "ACK":
             print "shared successfully"
@@ -332,7 +342,8 @@ class Client(object):
             print resp
 
     def showlog(self):
-        self.ctrl_sock.send("showlog")
+        command = embed_msg("showlog")
+        send_fix_msg(self.ctrl_sock, command, COMM_WIDTH)
         logdata = recv_long_msg(self.data_sock)
         self.ctrl_sock.recv(1024)
         print logdata        
